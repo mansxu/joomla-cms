@@ -430,6 +430,8 @@ abstract class JDatabaseQuery
 				{
 					$query .= (string) $this->order;
 				}
+$e = new Exception;
+error_log($e->getTraceAsString());
 
 				break;
 
@@ -458,7 +460,8 @@ abstract class JDatabaseQuery
 
 					$query .= (string) $this->values;
 				}
-
+$e = new Exception;
+error_log($e->getTraceAsString());
 				break;
 
 			case 'call':
@@ -474,7 +477,7 @@ abstract class JDatabaseQuery
 		{
 			$query = $this->processLimit($query, $this->limit, $this->offset);
 		}
-
+error_log("QUERY:\n".$query."\n\n");
 		return $query;
 	}
 

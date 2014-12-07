@@ -24,6 +24,8 @@ class JDatabaseDriverSqlite extends JDatabaseDriverPdo
 	 * @since  12.1
 	 */
 	public $name = 'sqlite';
+	
+	protected $nullDate = '1970-01-01 00:00:00';
 
 	/**
 	 * The character(s) used to quote SQL statement names such as table names or field names,
@@ -138,6 +140,82 @@ class JDatabaseDriverSqlite extends JDatabaseDriverPdo
 		settype($tables, 'array');
 
 		return $tables;
+	}
+
+	/**
+	 * This function replaces a string identifier <var>$prefix</var> with the string held is the
+	 * <var>tablePrefix</var> class variable.
+	 *
+	 * @param   string  $query   The SQL statement to prepare.
+	 * @param   string  $prefix  The common table prefix.
+	 *
+	 * @return  string  The processed SQL statement.
+	 *
+	 * @since   12.1
+	 */
+	public function replacePrefix($query, $prefix = '#__')
+	{
+		$query = trim($query);
+
+		if (strpos($query, '\''))
+		{
+			// Sequence name quoted with ' ' but need to be replaced
+			if (strpos($query, 'currval'))
+			{
+				$query = explode('currval', $query);
+
+				for ($nIndex = 1; $nIndex < count($query); $nIndex = $nIndex + 2)
+				{
+					$query[$nIndex] = str_replace($prefix, $this->tablePrefix, $query[$nIndex]);
+				}
+
+				$query = implode('currval', $query);
+			}
+
+			// Sequence name quoted with ' ' but need to be replaced
+			if (strpos($query, 'nextval'))
+			{
+				$query = explode('nextval', $query);
+
+				for ($nIndex = 1; $nIndex < count($query); $nIndex = $nIndex + 2)
+				{
+					$query[$nIndex] = str_replace($prefix, $this->tablePrefix, $query[$nIndex]);
+				}
+
+				$query = implode('nextval', $query);
+			}
+
+			// Sequence name quoted with ' ' but need to be replaced
+			if (strpos($query, 'setval'))
+			{
+				$query = explode('setval', $query);
+
+				for ($nIndex = 1; $nIndex < count($query); $nIndex = $nIndex + 2)
+				{
+					$query[$nIndex] = str_replace($prefix, $this->tablePrefix, $query[$nIndex]);
+				}
+
+				$query = implode('setval', $query);
+			}
+
+			$explodedQuery = explode('\'', $query);
+
+			for ($nIndex = 0; $nIndex < count($explodedQuery); $nIndex = $nIndex + 2)
+			{
+				if (strpos($explodedQuery[$nIndex], $prefix))
+				{
+					$explodedQuery[$nIndex] = str_replace($prefix, $this->tablePrefix, $explodedQuery[$nIndex]);
+				}
+			}
+
+			$replacedQuery = implode('\'', $explodedQuery);
+		}
+		else
+		{
+			$replacedQuery = str_replace($prefix, $this->tablePrefix, $query);
+		}
+
+		return $replacedQuery;
 	}
 
 	/**
@@ -458,5 +536,55 @@ class JDatabaseDriverSqlite extends JDatabaseDriverPdo
 		{
 			$this->transactionDepth++;
 		}
+	}
+	
+	/**
+	 * This function return a field value as a prepared string to be used in a SQL statement.
+	 *
+	 * @param   array   $columns      Array of table's column returned by ::getTableColumns.
+	 * @param   string  $field_name   The table field's name.
+	 * @param   string  $field_value  The variable value to quote and return.
+	 *
+	 * @return  string  The quoted string.
+	 *
+	 * @since   12.1
+	 */
+	public function sqlValue($columns, $field_name, $field_value)
+	{
+	error_log("sqlValue:".$columns.":".$field_name.":".$field_value);
+		switch ($columns[$field_name])
+		{
+			case 'date':
+			case 'timestamp without time zone':
+				if (empty($field_value))
+				{
+					$field_value = $this->getNullDate();
+				}
+
+				$val = 'date('.$this->quote($field_value).')';
+				break;
+
+			default:
+				$val = $this->quote($field_value);
+				break;
+		}
+
+		return $val;
+	}
+	
+	/**
+	 * Method to get the auto-incremented value from the last INSERT statement.
+	 *
+	 * @return  string  The value of the auto-increment field from the last inserted row.
+	 *
+	 * @since   12.1
+	 */
+	public function insertid()
+	{
+		$this->connect();
+		error_log("INSERTID------------------------------------------------------------------------------------------------------------");
+
+		// Error suppress this to prevent PDO warning us that the driver doesn't support this operation.
+		return sqlite_last_insert_rowid();
 	}
 }
